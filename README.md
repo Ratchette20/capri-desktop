@@ -239,6 +239,23 @@ time, she tells you where the picture goes: to her chat's AI. With an AI on your
 one, the picture goes to that service. She never keeps the picture, and her chat remembers what she said for a while.
 It takes a model that can read pictures: gemma3 on your PC, Gemini or OpenAI online (not llama3.2, she'll tell you).
 
+### Talk to her out loud
+
+**Voice** in her menu lets you dictate instead of typing. What you say becomes text in her chat, as if you had typed
+it, so her chat's AI answers and does what you ask (open an app, the music, a reminder…). It's off until you tick it.
+
+- **Recognition**: *Windows* (on your PC, offline, nothing to download; needs the language installed in Windows),
+  *a Whisper server of your own* (whisper.cpp or any OpenAI-compatible one: give its address), or *online* (Groq,
+  which has a free tier, or OpenAI, with a key you paste in her panel, kept encrypted like her chat keys).
+- **When to talk**: *with a key* (F8, F9, F10, Right Ctrl, Caps Lock or Insert: hold it to talk, or press once to start
+  and once to stop; the mic button in her chat works too), or *mic always on*: she listens continuously and cuts what
+  you say into sentences. By default she only answers when you start with "Capri" (or with her chat open), so a
+  video or a talk next to you doesn't talk to her.
+- **Send to Capri right away** off: what you say only fills her chat's line, for you to read and send.
+- **Test the mic** records 4 seconds and shows what she understood.
+
+The key is read through a small PowerShell (`src/main/keys.ps1`) that only checks whether that one key is down.
+
 ### Make her yours
 
 Right-click her › **Make her yours…** (or "Make me yours" in her guide), one panel at a time, each one skippable:
@@ -454,6 +471,11 @@ it's never kept or sent anywhere.
 
 When she looks at your screen (only when you ask, or if you ticked *Look at my screen now and then*), a picture of the
 screen goes to her chat's AI: on your PC with Ollama (a local model), to the online service otherwise. It's never written to disk.
+
+When you dictate with *Windows* or a Whisper server on your PC, the sound stays on it. With an online service (or a
+server that isn't on your PC), the sound of each sentence goes to that service, only while dictation is on. She tells
+you so and asks first. The sound is never written to disk, except a temporary file for Windows' recognition, deleted
+right after.
 
 ## Art direction
 

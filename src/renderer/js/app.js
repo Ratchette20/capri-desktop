@@ -7,6 +7,7 @@ import { Brain } from './brain.js';
 import { Guide } from './guide.js';
 import { Mission } from './mission.js';
 import { Chat } from './chat.js';
+import { Talk } from './talk.js';
 import { Setup } from './setup.js';
 import { Custom } from './custom.js';
 import { Bond, Jealousy } from './bond.js';
@@ -232,6 +233,9 @@ async function boot() {
   brain.onTalk = () => chat.start();
   // Getting her chat going with buttons (setup.js): Ollama and a model, a key, or an address
   const setup = new Setup({ guide, panel, host, brain, capri, voice });
+  // talking to her out loud (talk.js): what you say goes to her chat like what you type
+  const talk = new Talk({ host, chat, panel, guide, capri, brain });
+  talk.configure(config);
   guide.setup = setup;
   guide.onTalk = () => chat.start();
   chat.onSetup = (status) => setup.chat(status);
@@ -631,6 +635,7 @@ async function boot() {
 
   host.onConfig((cfg) => {
     voice.configure(cfg);
+    talk.configure(cfg);
     jealousy.enabled = cfg.jealous !== false;
     jealousy.closePages = cfg.closePages !== false;
     followOn = cfg.follow !== false;
@@ -669,6 +674,7 @@ async function boot() {
 
   host.onCommand(async (cmd) => {
     const t = brain.t;
+    if (talk.command(cmd)) return; // voiceServer, voiceEngine, voiceKey, voiceTest (her menu's Voice)
     switch (cmd.name) {
       case 'teleport':
         capri.teleport(capri.spot('random'));

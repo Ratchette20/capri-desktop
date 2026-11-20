@@ -62,6 +62,10 @@ export class Panel {
     this.chatForm = panel.querySelector('.panel__chat');
     this.chatInput = panel.querySelector('.panel__input');
     this.chatSend = panel.querySelector('.panel__send');
+    this.chatMic = panel.querySelector('.panel__mic'); // dictation (talk.js): talk instead of typing
+    this.micAvailable = false;
+    this.onMic = null; // () => void
+    this.chatMic.addEventListener('click', () => this.onMic?.());
     this.chatClose = panel.querySelector('.panel__close');
     this.note = panel.querySelector('.panel__note');
     this.chatForm.addEventListener('click', (e) => e.stopPropagation());
@@ -280,6 +284,7 @@ export class Panel {
     this.chatForm.hidden = !chat;
     this.note.hidden = !chat?.note;
     if (!chat) return;
+    this.chatMic.hidden = !this.micAvailable || Boolean(chat.secret);
     this.chatInput.type = chat.secret ? 'password' : 'text';
     this.chatInput.placeholder = chat.placeholder;
     this.chatInput.setAttribute('aria-label', chat.placeholder);
@@ -364,6 +369,18 @@ export class Panel {
     this.line.classList.remove('is-glitching');
     void this.line.offsetWidth; // restart the CSS animation
     this.line.classList.add('is-glitching');
+  }
+
+  // The mic button of her chat (talk.js): there when you dictate with a key or the button
+  setMic(available, t) {
+    this.micAvailable = available;
+    this.chatMic.title = t.micTitle;
+    this.chatMic.setAttribute('aria-label', t.micTitle);
+    if (this.current?.chat) this.chatMic.hidden = !available || Boolean(this.current.chat.secret);
+  }
+
+  micState(state) {
+    this.chatMic.dataset.state = state;
   }
 
   // While she answers you can't send another.

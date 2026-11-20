@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
-  clipboard, ClipboardItem, dialog, powerMonitor, desktopCapturer,
+  clipboard, ClipboardItem, dialog, powerMonitor, desktopCapturer, session,
 } = require('electron');
 const { randomUUID } = require('node:crypto');
 
@@ -21,6 +21,7 @@ const apps = require('./apps');
 const system = require('./system');
 const launch = require('./launch');
 const files = require('./files');
+const speech = require('./speech');
 const { ASSISTANTS, assistant } = require('./assistants');
 const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
 const activeHooks = () => activeAssistant().hooks;
@@ -282,11 +283,13 @@ function resolveLang(setting) {
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
   const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
-  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
+  return { ...cfg, voice: speech.voiceOf(cfg), keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
 }
 
 function updateConfig(patch) {
+  patch = speech.mergePatch(patch, config.load()); // { voice: { engine } } arrives partial
   config.save(patch);
+  speech.onConfig(patch);
   if ('rest' in patch) {
     fitOverlay(); // the taskbar in her window or not
     windowWatch?.refresh();
@@ -329,6 +332,7 @@ function rebuildTray() {
     { label: t.help, click: () => sendCommand('welcome') },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
+    speech.menu({ cfg, lang: resolveLang(cfg.lang), update: updateConfig, command: sendCommand }),
     { label: t.lookNow, click: () => sendCommand('look') },
     {
       label: t.reminders,
@@ -1052,6 +1056,7 @@ function main() {
     serveProtocol();
     registerIpc();
     createOverlay();
+    speech.init({ ipcMain, session, config, setup, getOverlay: () => overlay });
     createTray();
     windowWatch = startWindowWatch({
       overlay,
@@ -1089,6 +1094,7 @@ function main() {
 
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+    speech.stop();
     windowWatch?.stop();
   });
   app.on('window-all-closed', (e) => e.preventDefault());

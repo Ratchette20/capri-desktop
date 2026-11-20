@@ -71,5 +71,9 @@ contextBridge.exposeInMainWorld('host', {
   screenshot: () => ipcRenderer.invoke('files:screenshot'),
   webSearch: (query) => ipcRenderer.invoke('web:search', query),
   openSite: (address) => ipcRenderer.invoke('apps:site', address),
+  voiceTranscribe: (request) => ipcRenderer.invoke('voice:transcribe', request),
+  voiceState: () => ipcRenderer.invoke('voice:state'),
+  voiceSetKey: (provider, key) => ipcRenderer.invoke('voice:setKey', { provider, key }),
+  onVoiceKey: on('voice:key'),
   focusOverlay: (on) => ipcRenderer.send('overlay:focus', Boolean(on)),
 });

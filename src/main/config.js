@@ -43,6 +43,7 @@ const DEFAULTS = {
   breaks: true,      // after two hours at your PC without a real break, she tells you to take one (breaks.js)
   setups: {},        // your setups, by name: the apps you had open and where (setups.js)
   gameClose: [],     // the apps game mode closes, as you named them
+  voice: {},         // dictation: her microphone and how you talk to her (speech.js DEFAULTS)
   gameMode: null,    // game mode on: { plan, closed, since }, to put everything back after
 };
 
