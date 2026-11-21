@@ -31,6 +31,7 @@ const DEFAULTS = {
   motion: 'auto',    // her animations: 'auto' (like Windows' animation effects), 'full' or 'reduced'
   motionAsked: false, // she asked once, Windows' animations being off, whether to move anyway
   render: 'auto',   // how her window is drawn: 'auto', 'gl' (OpenGL) or 'software' (no graphics card), for PCs that show it black
+  voice: {},         // dictation: her microphone and how you talk to her (speech.js DEFAULTS)
 };
 
 let cache = null;

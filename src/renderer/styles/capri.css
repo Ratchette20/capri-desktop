@@ -865,3 +865,52 @@ html[data-motion='reduced'] .panel__line.is-glitching,
 html[data-motion='reduced'] .panel[data-kind='alert'] .panel__state {
   animation: none !important;
 }
+
+/* dictation (talk.js): the mic button of her chat, and the light that says the mic is open */
+.panel__mic {
+  padding-inline: 10px;
+}
+
+.panel__mic[data-state='listening'] {
+  --btn: var(--accent);
+  --notch: var(--accent);
+  animation: blink 700ms steps(2, jump-none) infinite;
+}
+
+.panel__mic[data-state='working'] {
+  --btn: var(--paper-3);
+  --notch: var(--paper-3);
+}
+
+.mic {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 50;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--yellow);
+  background: transparent;
+  pointer-events: none;
+}
+
+.mic[data-state='listening'] {
+  background: var(--yellow);
+  animation: blink 700ms steps(2, jump-none) infinite;
+}
+
+.mic[data-state='working'] {
+  border-color: var(--paper-3);
+}
+
+.mic[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__mic[data-state='listening'],
+  .mic[data-state='listening'] {
+    animation: none;
+  }
+}

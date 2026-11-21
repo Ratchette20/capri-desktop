@@ -170,6 +170,26 @@ fan d'elle, et le panneau du chat le dit à chaque fois.
 
 Rien d'autre : elle ne voit ni ton écran ni tes fichiers.
 
+### Lui parler à voix haute
+
+**Voix** dans son menu te laisse dicter au lieu de taper. Ce que tu dis devient du texte dans son chat, comme si tu
+l'avais tapé : l'IA de son chat répond et fait ce que tu demandes (ouvrir une appli, la musique, un rappel…).
+C'est désactivé tant que tu ne le coches pas.
+
+- **Reconnaissance** : *Windows* (sur ton PC, hors ligne, rien à télécharger ; il faut la langue installée dans
+  Windows), *un serveur Whisper à toi* (whisper.cpp ou un serveur compatible OpenAI : tu donnes son adresse), ou *en
+  ligne* (Groq, qui a une offre gratuite, ou OpenAI, avec une clé que tu colles dans son panneau, gardée chiffrée comme
+  les clés de son chat).
+- **Quand parler** : *avec une touche* (F8, F9, F10, Ctrl droite, Verr. Maj ou Inser : maintenue pour parler, ou une
+  pression pour démarrer et une pour arrêter ; le bouton micro de son chat marche aussi), ou *micro toujours
+  ouvert* : elle écoute en continu et coupe ce que tu dis en phrases. Par défaut elle ne répond que si tu commences par
+  « Capri » (ou si son chat est ouvert), pour qu'une vidéo ou une conversation à côté ne lui parle pas.
+- **Envoyer à Capri tout de suite** décoché : ce que tu dis remplit seulement la ligne de son chat, pour que tu relises
+  et envoies.
+- **Tester le micro** enregistre 4 secondes et montre ce qu'elle a compris.
+
+La touche est lue par un petit PowerShell (`src/main/keys.ps1`) qui regarde seulement si cette touche-là est enfoncée.
+
 ### La personnaliser
 
 Clic droit sur elle › **La personnaliser…** (ou « Me personnaliser » dans son guide), un panneau à la fois, et chacun
@@ -347,6 +367,11 @@ Le contenu de tes fichiers n'est jamais transmis : pour une écriture, seule sa 
 Son chat va à Ollama sur ton PC (`127.0.0.1:11434`, ou `OLLAMA_HOST`) avec ce qu'elle sait du moment (le nom du
 projet, la dernière action de Claude, les compteurs du jour). Son journal de mission reste dans son propre stockage,
 sur ton PC.
+
+Quand tu dictes avec *Windows* ou un serveur Whisper sur ton PC, le son reste dessus. Avec un service en ligne (ou
+un serveur qui n'est pas sur ton PC), le son de chaque phrase part chez ce service, seulement quand la dictée est
+activée. Elle te le dit et te demande d'abord. Le son n'est jamais écrit sur le disque, sauf un fichier temporaire pour
+la reconnaissance de Windows, supprimé aussitôt.
 
 ## Direction artistique
 

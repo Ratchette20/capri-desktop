@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
-  clipboard, ClipboardItem, dialog, powerMonitor,
+  clipboard, ClipboardItem, dialog, powerMonitor, session,
 } = require('electron');
 
 const config = require('./config');
@@ -17,6 +17,7 @@ const llm = require('./llm');
 const setup = require('./setup');
 const apps = require('./apps');
 const launch = require('./launch');
+const speech = require('./speech');
 const { ASSISTANTS, assistant } = require('./assistants');
 const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
 const activeHooks = () => activeAssistant().hooks;
@@ -243,11 +244,13 @@ function resolveLang(setting) {
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
   const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
-  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
+  return { ...cfg, voice: speech.voiceOf(cfg), keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
 }
 
 function updateConfig(patch) {
+  patch = speech.mergePatch(patch, config.load()); // { voice: { engine } } arrives partial
   config.save(patch);
+  speech.onConfig(patch);
   if ('rest' in patch) fitOverlay(); // the taskbar in her window or not
   const cfg = rendererConfig();
   overlay?.webContents.send('capri:config', cfg);
@@ -275,6 +278,7 @@ function rebuildTray() {
     { label: t.help, click: () => sendCommand('welcome') },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
+    speech.menu({ cfg, lang: resolveLang(cfg.lang), update: updateConfig, command: sendCommand }),
     { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
@@ -766,6 +770,7 @@ function main() {
     serveProtocol();
     registerIpc();
     createOverlay();
+    speech.init({ ipcMain, session, config, setup, getOverlay: () => overlay });
     createTray();
     windowWatch = startWindowWatch({
       overlay,
@@ -796,6 +801,7 @@ function main() {
 
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+    speech.stop();
     windowWatch?.stop();
   });
   app.on('window-all-closed', (e) => e.preventDefault());

@@ -160,6 +160,23 @@ panel says so every time.
 
 Nothing else: she can't see your screen or your files.
 
+### Talk to her out loud
+
+**Voice** in her menu lets you dictate instead of typing. What you say becomes text in her chat, as if you had typed
+it, so her chat's AI answers and does what you ask (open an app, the music, a reminder…). It's off until you tick it.
+
+- **Recognition**: *Windows* (on your PC, offline, nothing to download; needs the language installed in Windows),
+  *a Whisper server of your own* (whisper.cpp or any OpenAI-compatible one: give its address), or *online* (Groq,
+  which has a free tier, or OpenAI, with a key you paste in her panel, kept encrypted like her chat keys).
+- **When to talk**: *with a key* (F8, F9, F10, Right Ctrl, Caps Lock or Insert: hold it to talk, or press once to start
+  and once to stop; the mic button in her chat works too), or *mic always on*: she listens continuously and cuts what
+  you say into sentences. By default she only answers when you start with "Capri" (or with her chat open), so a
+  video or a talk next to you doesn't talk to her.
+- **Send to Capri right away** off: what you say only fills her chat's line, for you to read and send.
+- **Test the mic** records 4 seconds and shows what she understood.
+
+The key is read through a small PowerShell (`src/main/keys.ps1`) that only checks whether that one key is down.
+
 ### Make her yours
 
 Right-click her › **Make her yours…** (or "Make me yours" in her guide), one panel at a time, each one skippable:
@@ -327,6 +344,11 @@ Your file contents are never sent: for a write, only its size goes through.
 
 Her chat goes to Ollama on your PC (`127.0.0.1:11434`, or `OLLAMA_HOST`) with what she knows of the moment (the
 project's name, Claude's last action, today's counts). Her mission log stays in her own storage on your PC.
+
+When you dictate with *Windows* or a Whisper server on your PC, the sound stays on it. With an online service (or a
+server that isn't on your PC), the sound of each sentence goes to that service, only while dictation is on. She tells
+you so and asks first. The sound is never written to disk, except a temporary file for Windows' recognition, deleted
+right after.
 
 ## Art direction
 
