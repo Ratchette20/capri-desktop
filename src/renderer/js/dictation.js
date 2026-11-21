@@ -72,12 +72,17 @@ export class Dictation {
     this.pushOn = false;  // une prise de parole à la touche est en cours
     this.pending = 0;     // phrases en cours de reconnaissance
     this.level = 0;       // 0..1, pour le bouton micro
+    this.peak = 0;        // le niveau le plus haut entendu (le test du micro)
+    this.deviceId = '';   // l'entrée audio ouverte ('' : celle par défaut)
+    this.deviceName = ''; // son nom
     this.onState = null;  // (state) => void
     this.onText = null;   // async ({ text, via }) => void
     this.onError = null;  // ({ code, error }) => void
     this.canHear = null;  // () => bool : faux pendant qu'elle parle (ses propres sons)
     this.wakeFree = null; // () => bool : vrai quand son chat est ouvert (inutile de dire « Capri »)
     host.onVoiceKey?.(({ down }) => this.key(down));
+    // un micro branché ou débranché : la liste du menu suit
+    navigator.mediaDevices?.addEventListener?.('devicechange', () => this.devices().catch(() => {}));
   }
 
   // réglages (voice de la config) et langue de reconnaissance
@@ -85,6 +90,8 @@ export class Dictation {
     const before = this.cfg;
     this.cfg = { ...this.cfg, ...voice };
     this.lang = lang;
+    // une autre entrée audio : le micro ouvert se rouvre sur elle
+    if (this.stream && before.device !== this.cfg.device && !this.pushOn) this.close();
     const wantOpen = this.cfg.enabled && this.cfg.mode === 'always';
     if (!this.cfg.enabled) this.close();
     else if (wantOpen && !this.stream) this.open().catch(() => {});
@@ -100,13 +107,43 @@ export class Dictation {
 
   // ---------- le micro ----------
 
+  // l'entrée choisie ; si elle n'est plus là, celle par défaut (et on le dit)
+  async getStream() {
+    const base = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    if (this.cfg.device) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({ audio: { ...base, deviceId: { exact: this.cfg.device } } });
+      } catch (err) {
+        if (err.name === 'NotAllowedError') throw err;
+        this.onError?.({ code: 'nodevice', error: this.cfg.deviceLabel || '' });
+      }
+    }
+    return navigator.mediaDevices.getUserMedia({ audio: base });
+  }
+
+  // les entrées audio, avec leur nom (connu seulement une fois le micro autorisé : probe l'ouvre une seconde)
+  async devices(probe = false) {
+    const list = async () => (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+    let inputs = await list();
+    if (probe && !this.stream && (!inputs.length || inputs.some((d) => !d.label))) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s.getTracks().forEach((t) => t.stop());
+        inputs = await list();
+      } catch {
+        // refusé ou absent : la liste restera vide
+      }
+    }
+    const found = inputs.map((d) => ({ id: d.deviceId, label: d.label }));
+    await this.host.voiceDevices?.(found);
+    return found;
+  }
+
   async open() {
     if (this.stream || this.opening) return;
     this.opening = true;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      this.stream = await this.getStream();
     } catch (err) {
       this.opening = false;
       this.onError?.({ code: err.name === 'NotAllowedError' ? 'denied' : 'nomic', error: err.message });
@@ -114,7 +151,20 @@ export class Dictation {
       return;
     }
     this.opening = false;
+    const track = this.stream.getAudioTracks()[0];
+    this.deviceName = track?.label || '';
+    this.deviceId = track?.getSettings?.().deviceId || '';
+    // débranché en route : on ferme proprement, la touche rouvrira
+    track?.addEventListener('ended', () => {
+      if (this.stream) {
+        this.close();
+        this.onError?.({ code: 'nomic', error: this.deviceName });
+      }
+    });
+    this.devices().catch(() => {}); // (maintenant autorisé : les noms sont là)
     this.ctx = new AudioContext();
+    // créé hors d'un geste, il peut démarrer « suspendu » : rien n'arriverait au ScriptProcessor
+    await this.ctx.resume().catch(() => {});
     this.rate = this.ctx.sampleRate;
     const source = this.ctx.createMediaStreamSource(this.stream);
     // (un ScriptProcessor : un AudioWorklet voudrait un script en blob:, que sa politique de sécurité refuse)
@@ -151,6 +201,7 @@ export class Dictation {
     for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
     const rms = Math.sqrt(sum / samples.length);
     this.level = Math.min(1, rms * 8);
+    if (rms > this.peak) this.peak = rms;
     const now = performance.now();
     const chunkMs = (samples.length / this.rate) * 1000;
 
@@ -253,13 +304,17 @@ export class Dictation {
     this.pushOn = true;
     this.buffers = [];
     this.set('listening');
+    this.peak = 0;
     await new Promise((r) => setTimeout(r, ms));
     this.pushOn = saved;
     const chunks = this.buffers;
     this.buffers = [];
+    const heard = { peak: this.peak, device: this.deviceName };
     if (!had && this.cfg.mode !== 'always') this.close();
     else this.set('idle');
-    return this.transcribe(chunks);
+    // aucun son du tout : inutile de l'envoyer quelque part, c'est la mauvaise entrée
+    if (this.peak < 0.004) return { ok: true, text: '', silent: true, ...heard };
+    return { ...(await this.transcribe(chunks)), ...heard };
   }
 
   // ---------- reconnaissance ----------

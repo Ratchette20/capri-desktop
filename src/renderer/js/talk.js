@@ -18,10 +18,11 @@ const TXT = {
     consent: (where) => `Pour comprendre ce que tu dis, le son de tes phrases est envoyé à ${where} : ce n’est plus hors ligne. Rien n’est envoyé tant que la dictée est éteinte, ni entre deux phrases.`,
     keyLine: (name) => `Colle ta clé ${name}.`, keyHow: 'Elle reste sur ton PC, chiffrée avec ton compte Windows, comme les clés de son chat.', keyTag: 'CLÉ', save: 'Enregistrer', keyNote: 'La même clé sert à son chat si tu choisis ce service.',
     addrLine: 'L’adresse de ton serveur Whisper.', addrHow: 'whisper.cpp (http://127.0.0.1:8080/inference) ou une API compatible OpenAI (http://127.0.0.1:8000/v1).', addrNote: 'Un serveur sur ce PC reste local : le son n’en sort pas.',
-    testing: 'Parle, je t’écoute 4 secondes…', testTag: 'MICRO', heard: (text) => `J’ai entendu : « ${text} »`, silence: 'Je n’ai rien entendu. Parle plus près du micro ?', testDone: 'Test du micro',
+    testing: (device) => `Parle, je t’écoute 4 secondes${device ? ` sur « ${device} »` : ''}…`, testTag: 'MICRO', heard: (text) => `J’ai entendu : « ${text} »`, silence: 'Je n’ai rien compris. Parle plus près du micro ?', noSound: 'Aucun son ne vient de cette entrée.', noSoundHow: (device) => `${device ? `« ${device} » ne capte rien. ` : ''}Choisis-en une autre : menu de Capri > Voix > Entrée audio.`, testDone: 'Test du micro', online: 'Passer en ligne',
     errors: {
       denied: ['Le micro est refusé.', 'Autorise le micro pour les applications dans les réglages de confidentialité de Windows.'],
-      nomic: ['Je ne trouve pas de micro.', 'Branche-en un, ou choisis-le comme micro par défaut dans Windows.'],
+      nomic: ['Je ne trouve pas de micro.', 'Branche-en un, ou choisis une entrée : menu de Capri > Voix > Entrée audio.'],
+      nodevice: ['Ton micro choisi n’est plus là.', 'J’utilise celui de Windows en attendant. Menu de Capri > Voix > Entrée audio.'],
       nokey: ['Il me faut une clé pour ce service.', 'Menu de Capri > Voix > Clé API du service…'],
       nolang: ['Windows ne connaît pas cette langue pour la voix.', 'Ajoute-la dans Windows (Heure et langue > Voix), ou choisis un serveur Whisper ou le service en ligne.'],
       busy: ['Le service est trop sollicité.', 'Réessaie dans un instant.'],
@@ -38,10 +39,11 @@ const TXT = {
     consent: (where) => `To understand you, the sound of what you say is sent to ${where}: it is no longer offline. Nothing is sent while dictation is off, nor between two sentences.`,
     keyLine: (name) => `Paste your ${name} key.`, keyHow: 'It stays on your PC, encrypted with your Windows account, like her chat keys.', keyTag: 'KEY', save: 'Save', keyNote: 'The same key serves her chat if you pick that service.',
     addrLine: 'The address of your Whisper server.', addrHow: 'whisper.cpp (http://127.0.0.1:8080/inference) or an OpenAI-compatible API (http://127.0.0.1:8000/v1).', addrNote: 'A server on this PC stays local: the sound never leaves it.',
-    testing: 'Say something, I listen for 4 seconds…', testTag: 'MIC', heard: (text) => `I heard: “${text}”`, silence: 'I heard nothing. Closer to the mic?', testDone: 'Mic test',
+    testing: (device) => `Say something, I listen for 4 seconds${device ? ` on “${device}”` : ''}…`, testTag: 'MIC', heard: (text) => `I heard: “${text}”`, silence: 'I didn’t catch anything. Closer to the mic?', noSound: 'No sound comes from this input.', noSoundHow: (device) => `${device ? `“${device}” picks up nothing. ` : ''}Pick another one: Capri’s menu > Voice > Audio input.`, testDone: 'Mic test', online: 'Switch to online',
     errors: {
       denied: ['The microphone is blocked.', 'Allow the mic for apps in Windows’ privacy settings.'],
-      nomic: ['I can’t find a microphone.', 'Plug one in, or make it the default mic in Windows.'],
+      nomic: ['I can’t find a microphone.', 'Plug one in, or pick an input: Capri’s menu > Voice > Audio input.'],
+      nodevice: ['Your chosen mic is gone.', 'I use Windows’ default meanwhile. Capri’s menu > Voice > Audio input.'],
       nokey: ['I need a key for that service.', 'Capri’s menu > Voice > Service API key…'],
       nolang: ['Windows has no voice recognition for this language.', 'Add it in Windows (Time & language > Speech), or pick a Whisper server or the online service.'],
       busy: ['The service is too busy.', 'Try again in a moment.'],
@@ -107,6 +109,11 @@ export class Talk {
     this.panel.setMic(Boolean(this.cfg.enabled) && this.cfg.mode === 'push', this.t);
     this.render(this.dictation.state);
     if (consent) this.consent();
+    // the mics' names, for her menu (once the dictation is on: it opens the mic for a second to read them)
+    if (this.cfg.enabled && !consent && !this.listed) {
+      this.listed = true;
+      this.dictation.devices(true).catch(() => {});
+    }
   }
 
   render(state) {
@@ -149,9 +156,16 @@ export class Talk {
     if (key === this.lastError && performance.now() - this.lastErrorAt < 60000) return;
     this.lastError = key;
     this.lastErrorAt = performance.now();
+    // Windows without the language's recognizer: the online way is one click away
+    const online = code === 'nolang';
     this.panel.say({
-      kind: 'info', face: 'aside', line, quote: quote || error || '', badge: t.mic,
-      actions: [{ id: 'ok', label: t.ok, primary: true }], onAction: () => this.panel.hide(), hold: 9000,
+      kind: 'info', face: 'aside', line, quote: `${quote || ''}${error && code === 'nolang' ? ` (${error})` : quote ? '' : error || ''}`, badge: t.mic,
+      actions: [...(online ? [{ id: 'online', label: t.online, primary: true }] : []), { id: 'ok', label: t.ok, primary: !online }],
+      onAction: (id) => {
+        this.panel.hide();
+        if (id === 'online') this.host.setConfig({ voice: { engine: 'cloud' } });
+      },
+      hold: 12000,
     });
   }
 
@@ -202,8 +216,15 @@ export class Talk {
   async test() {
     const t = this.t;
     if (this.needsConsent({ ...this.cfg, enabled: true })) return this.consent();
-    this.panel.say({ kind: 'info', face: 'look', line: t.testing, badge: t.testTag, hold: 4600 });
+    this.panel.say({ kind: 'info', face: 'look', line: t.testing(this.dictation.deviceName), badge: t.testTag, hold: 4600 });
     const res = await this.dictation.test(4000);
+    if (res.silent) {
+      this.panel.say({
+        kind: 'info', face: 'wide', line: t.noSound, quote: t.noSoundHow(res.device), badge: t.testDone,
+        actions: [{ id: 'ok', label: t.ok, primary: true }], onAction: () => this.panel.hide(), hold: 15000,
+      });
+      return;
+    }
     if (!res.ok) return this.fail({ code: res.code, error: res.error });
     this.panel.say({
       kind: 'info', face: res.text ? 'smug' : 'aside', line: res.text ? t.heard(res.text) : t.silence, badge: t.testDone,
@@ -222,6 +243,9 @@ export class Talk {
         return true;
       case 'voiceKey':
         this.guide.scene(() => this.askKey());
+        return true;
+      case 'voiceDevices':
+        this.dictation.devices(true).catch(() => {});
         return true;
       case 'voiceTest':
         this.test();

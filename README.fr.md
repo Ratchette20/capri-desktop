@@ -186,7 +186,9 @@ C'est désactivé tant que tu ne le coches pas.
   « Capri » (ou si son chat est ouvert), pour qu'une vidéo ou une conversation à côté ne lui parle pas.
 - **Envoyer à Capri tout de suite** décoché : ce que tu dis remplit seulement la ligne de son chat, pour que tu relises
   et envoies.
-- **Tester le micro** enregistre 4 secondes et montre ce qu'elle a compris.
+- **Entrée audio** : *Voix > Entrée audio* choisit le micro qu'elle écoute (celui par défaut de Windows, ou un autre ; la
+  liste se met à jour quand tu en branches un). Si celui que tu as choisi est débranché, elle prend celui de Windows et te le dit.
+- **Tester le micro** enregistre 4 secondes et montre ce qu'elle a compris, ou te dit qu'aucun son ne vient de cette entrée.
 
 La touche est lue par un petit PowerShell (`src/main/keys.ps1`) qui regarde seulement si cette touche-là est enfoncée.
 

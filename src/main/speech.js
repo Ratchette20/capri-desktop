@@ -34,6 +34,8 @@ const DEFAULTS = {
   cloudAsked: false,   // elle t'a expliqué où part le son, et tu as dit oui
   serverUrl: 'http://127.0.0.1:8080/inference',
   serverModel: 'whisper-1',
+  device: '',          // l'entrée audio (deviceId du micro) ; vide : celle par défaut de Windows
+  deviceLabel: '',     // son nom, pour la retrouver si l'identifiant change
 };
 
 // virtual-key codes (windows.ps1 lit l'état physique de la touche)
@@ -53,6 +55,7 @@ let deps = null; // { config, setup, getOverlay }
 let poller = null;
 let pollerKey = null;
 let restarts = 0;
+let devices = []; // [{ id, label }] : les entrées audio que l'overlay a vues
 
 const voiceOf = (cfg) => ({ ...DEFAULTS, ...(cfg.voice || {}) });
 const isLocalUrl = (url) => /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(String(url || ''));
@@ -190,8 +193,8 @@ function syncKeys() {
 
 // ---------- branchement ----------
 
-function init({ ipcMain, session, config, setup, getOverlay }) {
-  deps = { config, setup, getOverlay };
+function init({ ipcMain, session, config, setup, getOverlay, refresh }) {
+  deps = { config, setup, getOverlay, refresh };
 
   // le micro, pour l'overlay et seulement lui (le reste comme avant)
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
@@ -199,8 +202,9 @@ function init({ ipcMain, session, config, setup, getOverlay }) {
     const types = details?.mediaTypes || [];
     callback(wc === getOverlay()?.webContents && types.every((t) => t === 'audio'));
   });
+  // (wc peut être nul pour une simple vérification, comme celle de enumerateDevices : sans ça, pas de noms de micros)
   session.defaultSession.setPermissionCheckHandler((wc, permission, _origin, details) => (
-    permission !== 'media' || (Boolean(wc) && wc === getOverlay()?.webContents && (!details?.mediaType || details.mediaType === 'audio'))));
+    permission !== 'media' || ((!wc || wc === getOverlay()?.webContents) && (!details?.mediaType || details.mediaType === 'audio'))));
 
   ipcMain.handle('voice:transcribe', (_e, req) => transcribe(req).catch((err) => ({ ok: false, error: err.message })));
   ipcMain.handle('voice:state', () => ({
@@ -208,6 +212,17 @@ function init({ ipcMain, session, config, setup, getOverlay }) {
     local: isLocal(voiceOf(config.load())),
     provider: (CLOUD[voiceOf(config.load()).cloud] || CLOUD.groq).label,
   }));
+  // les entrées audio vues par l'overlay (les noms ne sont connus qu'après une autorisation du micro)
+  ipcMain.handle('voice:devices', (_e, list) => {
+    const next = (Array.isArray(list) ? list : [])
+      .filter((d) => d && typeof d.id === 'string')
+      .map((d) => ({ id: d.id, label: String(d.label || '').slice(0, 120) }));
+    if (JSON.stringify(next) !== JSON.stringify(devices)) {
+      devices = next;
+      deps.refresh?.(); // le menu se refait avec la liste
+    }
+    return { ok: true };
+  });
   // la clé du service en ligne : la même que celle de son chat pour ce service, chiffrée de la même façon
   ipcMain.handle('voice:setKey', (_e, { provider, key }) => {
     if (!CLOUD[provider] || !String(key || '').trim()) return { ok: false };
@@ -242,6 +257,7 @@ const TXT = {
     autoSend: 'Envoyer à Capri tout de suite', wake: 'Écoute continue : dire « Capri » d’abord',
     service: 'Service en ligne', apiKey: 'Clé API du service…', address: 'Adresse du serveur…', test: 'Tester le micro',
     keys: { F8: 'F8', F9: 'F9', F10: 'F10', RightCtrl: 'Ctrl droite', CapsLock: 'Verr. Maj', Insert: 'Inser' },
+    input: 'Entrée audio (micro)', defaultInput: 'Celle par défaut de Windows', refreshInputs: 'Actualiser la liste', noInputs: 'Active la dictée pour voir les micros', unplugged: ' (absent)',
   },
   en: {
     voice: 'Voice (dictate to Capri)', enabled: 'Voice dictation',
@@ -251,6 +267,7 @@ const TXT = {
     autoSend: 'Send to Capri right away', wake: 'Continuous listening: say “Capri” first',
     service: 'Online service', apiKey: 'Service API key…', address: 'Server address…', test: 'Test the mic',
     keys: { F8: 'F8', F9: 'F9', F10: 'F10', RightCtrl: 'Right Ctrl', CapsLock: 'Caps Lock', Insert: 'Insert' },
+    input: 'Audio input (microphone)', defaultInput: 'Windows default', refreshInputs: 'Refresh the list', noInputs: 'Turn dictation on to see the mics', unplugged: ' (missing)',
   },
 };
 
@@ -274,6 +291,22 @@ function menu({ cfg, lang, update, command }) {
         submenu: Object.entries(CLOUD).map(([id, p]) => ({ label: p.label, type: 'radio', checked: v.cloud === id, click: () => set({ cloud: id }) })),
       },
       { label: t.apiKey, click: () => command('voiceKey') },
+      { type: 'separator' },
+      {
+        label: t.input,
+        submenu: [
+          { label: t.defaultInput, type: 'radio', checked: !v.device, click: () => set({ device: '', deviceLabel: '' }) },
+          ...devices.filter((d) => d.id !== 'default' && d.id !== 'communications').map((d) => ({
+            label: d.label || d.id.slice(0, 8), type: 'radio', checked: v.device === d.id, click: () => set({ device: d.id, deviceLabel: d.label }),
+          })),
+          // choisi mais débranché
+          ...(v.device && !devices.some((d) => d.id === v.device)
+            ? [{ label: `${v.deviceLabel || v.device.slice(0, 8)}${t.unplugged}`, type: 'radio', checked: true, enabled: false }] : []),
+          ...(devices.length ? [] : [{ label: t.noInputs, enabled: false }]),
+          { type: 'separator' },
+          { label: t.refreshInputs, click: () => command('voiceDevices') },
+        ],
+      },
       { type: 'separator' },
       { label: t.mode, enabled: false },
       radio(t.push, v.mode, 'push', 'mode'),
