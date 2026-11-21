@@ -252,7 +252,9 @@ it, so her chat's AI answers and does what you ask (open an app, the music, a re
   you say into sentences. By default she only answers when you start with "Capri" (or with her chat open), so a
   video or a talk next to you doesn't talk to her.
 - **Send to Capri right away** off: what you say only fills her chat's line, for you to read and send.
-- **Test the mic** records 4 seconds and shows what she understood.
+- **Audio input**: *Voice > Audio input* picks which microphone she listens to (Windows' default, or any other one; the
+  list updates when you plug one in). If the one you chose is unplugged, she falls back on Windows' default and tells you.
+- **Test the mic** records 4 seconds and shows what she understood, or tells you that no sound comes from that input.
 
 The key is read through a small PowerShell (`src/main/keys.ps1`) that only checks whether that one key is down.
 

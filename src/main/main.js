@@ -1056,7 +1056,7 @@ function main() {
     serveProtocol();
     registerIpc();
     createOverlay();
-    speech.init({ ipcMain, session, config, setup, getOverlay: () => overlay });
+    speech.init({ ipcMain, session, config, setup, getOverlay: () => overlay, refresh: rebuildTray });
     createTray();
     windowWatch = startWindowWatch({
       overlay,

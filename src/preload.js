@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('host', {
   webSearch: (query) => ipcRenderer.invoke('web:search', query),
   openSite: (address) => ipcRenderer.invoke('apps:site', address),
   voiceTranscribe: (request) => ipcRenderer.invoke('voice:transcribe', request),
+  voiceDevices: (list) => ipcRenderer.invoke('voice:devices', list),
   voiceState: () => ipcRenderer.invoke('voice:state'),
   voiceSetKey: (provider, key) => ipcRenderer.invoke('voice:setKey', { provider, key }),
   onVoiceKey: on('voice:key'),
